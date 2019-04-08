@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/opt/anaconda/bin/python
 
 # Program to calculate spearman's rho,
 # using the Bio.Cluster module of python
@@ -10,6 +10,7 @@ import os
 import Bio.Cluster
 import scipy
 import scipy.stats
+import subprocess
 
 # -------------------------------------------------------------------- #
 
@@ -54,8 +55,11 @@ def read_file_ranks(file_name, pub_id_dict = None):
 # Function to read valid Paper IDs (those in older file)
 def get_valid_paper_ids(file_name):
 	valid_papers = dict()
+	print(file_name)
 	contents = open(file_name, "r").readlines()
+	# print(contents)
 	contents = [line.strip().split()[0] for line in contents]
+	# print(contents)
 	for content in contents:
 		valid_papers[content] = 1
 	
@@ -84,22 +88,23 @@ except:
 
 # -------------------------------------------------------------------- #
 # Main program
-
+print(get_common)
 # First sort files by paper id
 if(not get_common):
-	os.popen("sort -k1,1 \"" + article_file_old + "\" > older_file_sorted.txt")
-	os.popen("sort -k1,1 \"" + article_file_newer + "\" > newer_file_sorted.txt")
+	subprocess.call("sort -k1,1 \"" + article_file_old + "\" > older_file_sorted.txt", shell=True)
+	subprocess.call("sort -k1,1 \"" + article_file_newer + "\" > newer_file_sorted.txt", shell=True)
 else:
-	os.popen("cut -f 1 \"" + article_file_old + "\" | sort > file1_sorted.txt")
-	os.popen("cut -f 1 \"" + article_file_newer + "\" | sort > file2_sorted.txt")
+	subprocess.call("cut -f 1 \"" + article_file_old + "\" | sort > file1_sorted.txt", shell=True)
+	subprocess.call("cut -f 1 \"" + article_file_newer + "\" | sort > file2_sorted.txt", shell=True)
 	# Get common lines
-	os.popen("comm -12 file1_sorted.txt file2_sorted.txt > common_lines.txt")
-	os.popen("sort -k1,1 \"" + article_file_old + "\" | join -j 1 common_lines.txt - | sed 's/ /\t/' > older_file_sorted.txt")
-	os.popen("sort -k1,1 \"" + article_file_newer + "\" | join -j 1 common_lines.txt - | sed 's/ /\t/' > newer_file_sorted.txt")
+	subprocess.call("comm -12 file1_sorted.txt file2_sorted.txt > common_lines.txt", shell=True)
+	subprocess.call("sort -k1,1 \"" + article_file_old + "\" | join -j 1 common_lines.txt - | sed 's/ /\t/' > older_file_sorted.txt", shell=True)
+	subprocess.call("sort -k1,1 \"" + article_file_newer + "\" | join -j 1 common_lines.txt - | sed 's/ /\t/' > newer_file_sorted.txt", shell=True)
 
+# print(os.popen("head older_file_sorted.txt").read())
 # Get valid papers (existing in both files)
 valid_papers = get_valid_paper_ids("older_file_sorted.txt")
-
+# print(valid_papers)
 # print out first 10 of each, just to check
 # print os.popen("head -10 older_file_sorted.txt").read()
 # print os.popen("head -10 newer_file_sorted.txt").read()
@@ -114,7 +119,7 @@ old_file_list = read_file_ranks("older_file_sorted.txt")
 # b. Read paper_id's from second file that are in older file
 new_file_list = read_file_ranks("newer_file_sorted.txt", valid_papers)
 # print "New list: ", new_file_list
-
+# print(old_file_list)
 # print old_file_list[:10]
 # print new_file_list[:10]
 

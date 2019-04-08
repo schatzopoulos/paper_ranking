@@ -134,13 +134,9 @@ if __name__ == "__main__":
         
         contribs = contribs.union(dangling_contribs)
 
-        # print()
-        # print((links.getNumPartitions(), links.partitioner))
-        # print((ranks.getNumPartitions(), ranks.partitioner))
-
         # re-calculate pagerank score from neighbor contributions
         ranks = contribs.reduceByKey(add, numPartitions = links.getNumPartitions()).mapValues(lambda rank: pagerank_score(rank, alpha, initial_pagerank))
-        # print((ranks.getNumPartitions(), ranks.partitioner))
+
         # calculate error between consecutive iterations
         max_error = ranks.join(prev_ranks).mapValues(lambda rank: abs(rank[0] - rank[1])).values().max()
         print("Iteration: %s - max error: %s - time: %s" % (iteration, max_error, (time.time() - start_time)))
