@@ -172,7 +172,7 @@ if __name__ == "__main__":
     # read lines from file
     lines = spark.read.text(input_file).rdd.map(lambda r: r[0])
     
-    partitions_count = 1       # number of executors * number of cores per executor
+    partitions_count = 35       # number of executors * number of cores per executor
 
     # extract citation links
     links = lines.map(lambda line: parse_line(line)).partitionBy(partitions_count).cache()
@@ -185,6 +185,10 @@ if __name__ == "__main__":
     
     # merge citation count computed based on similarity
     cc = cc.leftOuterJoin(cc_sim, numPartitions = links.getNumPartitions()).mapValues(lambda x: x[1] if x[1] is not None else x[0]).cache()
+
+    # normalize cc values
+    max_value = cc.values().sum()
+    cc = cc.mapValues(lambda x: x / float(max_value))
 
     # total number of nodes
     node_count = links.count()
