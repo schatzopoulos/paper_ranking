@@ -138,29 +138,21 @@ def calculate_similarity_cc(sim_file, min_sim_score, cold_start_year, links, cc)
     return similarities
 
 if __name__ == "__main__":
-    if len(sys.argv) < 7:
-        print("Usage: pagerank <file> <sim_file> <alpha> <beta> <gamma> <convergence_error> <min_sim_score:optional>", file=sys.stderr)
+    if len(sys.argv) < 8:
+        print("Usage: pagerank <file> <sim_file> <alpha> <beta> <gamma> <convergence_error> <min_sim_score> <years_in_cold_start>", file=sys.stderr)
         sys.exit(-1)
 
     input_file = sys.argv[1]
     
     sim_file = sys.argv[2]
 
-    # if min_sim_score is not given, set 0.7
-    min_sim_score = 0.7 if len(sys.argv) <= 5 else float(sys.argv[7])
-    
-    # count citations after that year
-    min_year = 2000
-
-    # handle papers after that year as papers in cold start
-    cold_start_year = 2010
-
-    # damping factor
     alpha = float(sys.argv[3])
     beta = float(sys.argv[4])
     gamma = float(sys.argv[5])
 
     convergence_error = float(sys.argv[6])
+    min_sim_score = float(sys.argv[7])
+    years_in_cold_start = int(sys.argv[8])
 
     # initialize the spark context
     spark = SparkSession.builder.appName("SparkPageRank").getOrCreate()
@@ -176,6 +168,14 @@ if __name__ == "__main__":
 
     # extract citation links
     links = lines.map(lambda line: parse_line(line)).partitionBy(partitions_count).cache()
+
+    max_year = links.map(lambda x: x[1][1]).max()
+
+    # count citations after that year
+    min_year = max_year - years_in_cold_start
+
+    # handle papers after that year as papers in cold start
+    cold_start_year = max_year - years_in_cold_start
 
     # calculate citation counts for last X years
     cc = count_citations(lines, links, min_year)
