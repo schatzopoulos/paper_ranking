@@ -188,6 +188,11 @@ if __name__ == "__main__":
 
     # normalize cc values
     max_value = cc.values().sum()
+
+    # avoid division by zero when all cc scrores are zero
+    if (max_value == 0):
+        max_value = 1
+
     cc = cc.mapValues(lambda x: x / float(max_value))
 
     # total number of nodes
@@ -197,6 +202,9 @@ if __name__ == "__main__":
     print("Alpha: %s" % (alpha))
     print("Beta: %s" % (beta))
     print("Gamma: %s" % (gamma))
+    print("Min score: %s" % (min_sim_score))
+    print("Year: %s" % (years_in_cold_start))
+
     print("Partitions: %s" % (partitions_count))
 
     # initialize pagerank score
@@ -240,6 +248,7 @@ if __name__ == "__main__":
         print("Iteration: %s - max error: %s - time: %s" % (iteration, max_error, (time.time() - start_time)))
         iteration += 1
 
+    output_file = "a_" + str(alpha) + "_b_" + str(beta) + "_g_" + str(gamma) + "_error_" + str(convergence_error) + "_min_score_" + str(min_sim_score) + "_year_" + str(years_in_cold_start)
     ranks.sortBy(lambda x: - x[1]).coalesce(1).map(toCSVLine).saveAsTextFile("pagerank_results")
 
     spark.stop()
