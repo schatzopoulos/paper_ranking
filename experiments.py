@@ -151,115 +151,116 @@ if __name__ == "__main__":
         if (comb_sum <= 0.95 or comb_sum >= 1.05):
             continue;
         
-        for years_in_cold_start in range(0, 8):
-            alpha = comb[0]
-            beta = comb[1]
-            gamma = comb[2]
-            convergence_error = 0.00000000001
-            min_sim_score = 0.6
+        for min_year_var in range(0, 11):
+            for cold_year_var in range(0, 6):
+                alpha = comb[0]
+                beta = comb[1]
+                gamma = comb[2]
+                convergence_error = 0.00000000001
+                min_sim_score = 0.6
 
-            print((alpha, beta, gamma, years_in_cold_start))
-            
-            input_file = sys.argv[1]
-            
-            sim_file = sys.argv[2]
-
-            job_name = "SparkPageRank_a_" + str(alpha) + "_b_" + str(beta) + "_g_" + str(gamma) + "_year_" + str(years_in_cold_start)
-
-            # initialize the spark context
-            spark = SparkSession.builder.appName(job_name).getOrCreate()
-            
-            # supress Spark INFO messages
-            log4j = spark._jvm.org.apache.log4j
-            log4j.LogManager.getRootLogger().setLevel(log4j.Level.WARN)
-
-            # read lines from file
-            lines = spark.read.text(input_file).rdd.map(lambda r: r[0])
-            
-            partitions_count = 35       # number of executors * number of cores per executor
-
-            # extract citation links
-            links = lines.map(lambda line: parse_line(line)).partitionBy(partitions_count).cache()
-
-            max_year = links.map(lambda x: x[1][1]).max()
-
-            # count citations after that year
-            min_year = max_year - years_in_cold_start
-
-            # handle papers after that year as papers in cold start
-            cold_start_year = max_year - years_in_cold_start
-
-            # calculate citation counts for last X years
-            cc = count_citations(lines, links, min_year)
-
-            # calculate similarities
-            cc_sim = calculate_similarity_cc(sim_file, min_sim_score, cold_start_year, links, cc)
-            
-            # merge citation count computed based on similarity
-            cc = cc.leftOuterJoin(cc_sim, numPartitions = links.getNumPartitions()).mapValues(lambda x: x[1] if x[1] is not None else x[0]).cache()
-            
-            # normalize cc values
-            max_value = cc.values().sum()
-
-            # avoid division by zero when all cc scrores are zero
-            if (max_value == 0):
-                max_value = 1
-
-            cc = cc.mapValues(lambda x: x / float(max_value))
-
-            # total number of nodes
-            node_count = links.count()
-            # print("Number of nodes: %s" % (node_count))
-            # print("Convergence Error: %s" % (convergence_error))
-            # print("Alpha: %s" % (alpha))
-            # print("Beta: %s" % (beta))
-            # print("Gamma: %s" % (gamma))
-            # print("Min score: %s" % (min_sim_score))
-            # print("Year: %s" % (years_in_cold_start))
-
-            # print("Partitions: %s" % (partitions_count))
-
-            # initialize pagerank score
-            initial_pagerank = 1 / float(node_count)
-            ranks = links.map(lambda url_neighbors: (url_neighbors[0], initial_pagerank), preservesPartitioning = True)
-
-            # initialize error in a high value
-            max_error = 100
-            
-            iteration = 0
-
-            # Calculates and updates URL ranks continuously using PageRank algorithm.
-            while(max_error >= convergence_error):        
-                start_time = time.time()
-                prev_ranks = ranks
-
-                # find dangling nodes
-                dangling_nodes = links.filter(lambda link: not link[1][0])
-
-                # calculate dangling sum
-                dangling_sum = dangling_nodes.join(ranks).map(lambda x: x[1][1]).sum()
-                dangling_sum /= node_count
-
-                # add dangling sum to all nodes
-                dangling_contribs = links.mapValues(lambda x: dangling_sum)
                 
-                contribs = links.join(ranks, numPartitions = links.getNumPartitions()).flatMap(
-                    lambda url_urls_rank: compute_contribs(url_urls_rank[1][0][0], url_urls_rank[1][1]))
+                
+                input_file = sys.argv[1]
+                
+                sim_file = sys.argv[2]
 
-                contribs = contribs.union(dangling_contribs).coalesce(links.getNumPartitions())
+                job_name = "SparkPageRank_a_" + str(alpha) + "_b_" + str(beta) + "_g_" + str(gamma) + "_my_" + str(min_year_var) +  "_cy_" + str(cold_year_var)
 
-                # re-calculate pagerank score from neighbor contributions
-                ranks = contribs.reduceByKey(add, numPartitions = links.getNumPartitions())
+                # initialize the spark context
+                spark = SparkSession.builder.appName(job_name).getOrCreate()
+                
+                # supress Spark INFO messages
+                log4j = spark._jvm.org.apache.log4j
+                log4j.LogManager.getRootLogger().setLevel(log4j.Level.WARN)
 
-                # na tsekarw oti to sum tou dianumatos a = 1, b = 1 kai g = 1, to dianisma sum ston asso
-                ranks = ranks.join(cc, numPartitions = links.getNumPartitions()).mapValues(lambda x: pagerank_score(x[0], alpha, initial_pagerank, beta, x[1], gamma))   
+                # read lines from file
+                lines = spark.read.text(input_file).rdd.map(lambda r: r[0])
+                
+                partitions_count = 35       # number of executors * number of cores per executor
 
-                # calculate error between consecutive iterations
-                max_error = ranks.join(prev_ranks).mapValues(lambda rank: abs(rank[0] - rank[1])).values().max()
+                # extract citation links
+                links = lines.map(lambda line: parse_line(line)).partitionBy(partitions_count).cache()
 
-                print("\tIteration: %s - max error: %s - time: %s" % (iteration, max_error, (time.time() - start_time)))
-                iteration += 1
+                max_year = links.map(lambda x: x[1][1]).max()
 
-            ranks.sortBy(lambda x: - x[1]).coalesce(1).map(toCSVLine).saveAsTextFile(job_name)
+                # count citations after that year
+                min_year = max_year - min_year_var
 
-            spark.stop()
+                # handle papers after that year as papers in cold start
+                cold_start_year = max_year - cold_year_var
+
+                # calculate citation counts for last X years
+                cc = count_citations(lines, links, min_year)
+
+                # calculate similarities
+                cc_sim = calculate_similarity_cc(sim_file, min_sim_score, cold_start_year, links, cc)
+                
+                # merge citation count computed based on similarity
+                cc = cc.leftOuterJoin(cc_sim, numPartitions = links.getNumPartitions()).mapValues(lambda x: x[1] if x[1] is not None else x[0]).cache()
+                
+                # normalize cc values
+                max_value = cc.values().sum()
+
+                # avoid division by zero when all cc scrores are zero
+                if (max_value == 0):
+                    max_value = 1
+
+                cc = cc.mapValues(lambda x: x / float(max_value))
+
+                # total number of nodes
+                node_count = links.count()
+                # print("Number of nodes: %s" % (node_count))
+                # print("Convergence Error: %s" % (convergence_error))
+                # print("Alpha: %s" % (alpha))
+                # print("Beta: %s" % (beta))
+                # print("Gamma: %s" % (gamma))
+                # print("Min score: %s" % (min_sim_score))
+                # print("Year: %s" % (years_in_cold_start))
+
+                # print("Partitions: %s" % (partitions_count))
+
+                # initialize pagerank score
+                initial_pagerank = 1 / float(node_count)
+                ranks = links.map(lambda url_neighbors: (url_neighbors[0], initial_pagerank), preservesPartitioning = True)
+
+                # initialize error in a high value
+                max_error = 100
+                
+                iteration = 0
+                print((alpha, beta, gamma, years_in_cold_start))
+                # Calculates and updates URL ranks continuously using PageRank algorithm.
+                while(max_error >= convergence_error):        
+                    start_time = time.time()
+                    prev_ranks = ranks
+
+                    # find dangling nodes
+                    dangling_nodes = links.filter(lambda link: not link[1][0])
+
+                    # calculate dangling sum
+                    dangling_sum = dangling_nodes.join(ranks).map(lambda x: x[1][1]).sum()
+                    dangling_sum /= node_count
+
+                    # add dangling sum to all nodes
+                    dangling_contribs = links.mapValues(lambda x: dangling_sum)
+                    
+                    contribs = links.join(ranks, numPartitions = links.getNumPartitions()).flatMap(
+                        lambda url_urls_rank: compute_contribs(url_urls_rank[1][0][0], url_urls_rank[1][1]))
+
+                    contribs = contribs.union(dangling_contribs).coalesce(links.getNumPartitions())
+
+                    # re-calculate pagerank score from neighbor contributions
+                    ranks = contribs.reduceByKey(add, numPartitions = links.getNumPartitions())
+
+                    # na tsekarw oti to sum tou dianumatos a = 1, b = 1 kai g = 1, to dianisma sum ston asso
+                    ranks = ranks.join(cc, numPartitions = links.getNumPartitions()).mapValues(lambda x: pagerank_score(x[0], alpha, initial_pagerank, beta, x[1], gamma))   
+
+                    # calculate error between consecutive iterations
+                    max_error = ranks.join(prev_ranks).mapValues(lambda rank: abs(rank[0] - rank[1])).values().max()
+
+                    print("\tIteration: %s - max error: %s - time: %s" % (iteration, max_error, (time.time() - start_time)))
+                    iteration += 1
+
+                ranks.sortBy(lambda x: - x[1]).coalesce(1).map(toCSVLine).saveAsTextFile(job_name)
+
+                spark.stop()
