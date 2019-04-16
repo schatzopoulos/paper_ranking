@@ -154,8 +154,10 @@ if __name__ == "__main__":
     min_sim_score = float(sys.argv[7])
     years_in_cold_start = int(sys.argv[8])
 
+    job_name = "SparkPageRank_a_" + str(alpha) + "_b_" + str(beta) + "_g_" + str(gamma) + "_sim_" + min_sim_score + "_years_" + str(years_in_cold_start)
+
     # initialize the spark context
-    spark = SparkSession.builder.appName("SparkPageRank").getOrCreate()
+    spark = SparkSession.builder.appName(job_name).getOrCreate()
     
     # supress Spark INFO messages
     log4j = spark._jvm.org.apache.log4j
@@ -248,7 +250,6 @@ if __name__ == "__main__":
         print("Iteration: %s - max error: %s - time: %s" % (iteration, max_error, (time.time() - start_time)))
         iteration += 1
 
-    output_file = "a_" + str(alpha) + "_b_" + str(beta) + "_g_" + str(gamma) + "_error_" + str(convergence_error) + "_min_score_" + str(min_sim_score) + "_year_" + str(years_in_cold_start)
-    ranks.sortBy(lambda x: - x[1]).coalesce(1).map(toCSVLine).saveAsTextFile("pagerank_results")
+    ranks.sortBy(lambda x: - x[1]).coalesce(1).map(toCSVLine).saveAsTextFile(job_name)
 
     spark.stop()
