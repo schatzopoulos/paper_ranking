@@ -154,7 +154,7 @@ if __name__ == "__main__":
     min_sim_score = float(sys.argv[7])
     years_in_cold_start = int(sys.argv[8])
 
-    job_name = "SparkPageRank_a_" + str(alpha) + "_b_" + str(beta) + "_g_" + str(gamma) + "_sim_" + min_sim_score + "_years_" + str(years_in_cold_start)
+    job_name = "SparkPageRank_a_" + str(alpha) + "_b_" + str(beta) + "_g_" + str(gamma) + "_sim_" + str(min_sim_score) + "_years_" + str(years_in_cold_start)
 
     # initialize the spark context
     spark = SparkSession.builder.appName(job_name).getOrCreate()
