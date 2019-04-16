@@ -233,7 +233,7 @@ if __name__ == "__main__":
         max_error = 100
         
         iteration = 0
-        print((alpha, beta, gamma, years_in_cold_start))
+        print((alpha, beta, gamma, min_year_var, cold_year_var, min_sim_score))
         # Calculates and updates URL ranks continuously using PageRank algorithm.
         while(max_error >= convergence_error):        
             start_time = time.time()
