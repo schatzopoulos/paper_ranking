@@ -1,1 +1,1 @@
-# paper_ranking
+# Popularity ranking based on paper similarity
